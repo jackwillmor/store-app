@@ -18,9 +18,7 @@ class ImportService
     public function validatePostcodeData(string $postcode, string $latitude, string $longitude): bool
     {
         if ($this->validatePostcode($postcode) && $this->validateLatitude($latitude) && $this->validateLongitude($longitude)) {
-            if (!$this->postcodeAlreadyExists($postcode)) {
-                return true;
-            }
+            return !$this->postcodeAlreadyExists($postcode);
         }
 
         return false;
@@ -48,7 +46,8 @@ class ImportService
         // Regular expression pattern for UK postcodes
         $pattern = '/^([A-Z]{1,2}[0-9]{1,2}[A-Z]?)\s?[0-9][A-Z]{2}$/i';
 
-        return preg_match($pattern, strtoupper($postcode)) === 1;
+        // Ensure the postcode is not empty and matches the pattern
+        return !empty($postcode) && preg_match($pattern, strtoupper(trim($postcode))) === 1;
     }
 
     /**
@@ -59,7 +58,8 @@ class ImportService
      */
     public function validateLatitude(string $latitude): bool
     {
-        return is_numeric($latitude) && $latitude >= -90 && $latitude <= 90;
+        // Ensure the latitude is a valid number, finite, and within the valid range
+        return is_numeric($latitude) && is_finite($latitude) && $latitude >= -90 && $latitude <= 90;
     }
 
     /**
@@ -70,6 +70,7 @@ class ImportService
      */
     public function validateLongitude(string $longitude): bool
     {
-        return is_numeric($longitude) && $longitude >= -180 && $longitude <= 180;
+        // Ensure the longitude is a valid number, finite, and within the valid range
+        return is_numeric($longitude) && is_finite($longitude) && $longitude >= -180 && $longitude <= 180;
     }
 }

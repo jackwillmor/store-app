@@ -43,21 +43,18 @@ class ImportPostcodeData extends Command
 
         // Read the CSV file
         $postcodeData = storage_path('app/private/postcodedata.csv');
-
-        // Maximum number of records to insert
-        $maxRecords = $this->option('maxRecords') ?? 0;
+        $maxRecords = $this->option('maxRecords');
+        $batchSize = $this->option('batchSize');
 
         if (($handle = fopen($postcodeData, 'r')) !== false) {
-            $batchSize = $this->option('batchSize'); // Number of records to insert in each batch
-
             // Skip the header row if present
             fgetcsv($handle);
 
-            // Initialize a counter for the number of records inserted
+            $postcodes = [];
             $count = 0;
 
-            // Prepare the data for insertion
-            $postcodes = [];
+            // Begin a database transaction
+            DB::beginTransaction();
 
             // Loop through the CSV data
             while (($data = fgetcsv($handle, 1000, ',')) !== false) {
@@ -65,8 +62,8 @@ class ImportPostcodeData extends Command
                 $latitude = trim($data[42] ?? '');
                 $longitude = trim($data[43] ?? '');
 
-                // If the postcode, latitude, and longitude are valid, add them to the postcodes array
-                if ($this->importService->validatePostcodeData($postcode, $latitude, $longitude)) {
+                // Validate data and add to postcodes array if valid
+                if ($this->isValidPostcodeData($postcode, $latitude, $longitude)) {
                     $postcodes[] = [
                         'postcode' => $postcode,
                         'latitude' => $latitude,
@@ -94,13 +91,37 @@ class ImportPostcodeData extends Command
             }
 
             // Insert the remaining records
-            DB::table('postcodes')->insert($postcodes);
-            $this->warn("Postcode data imported $count out of $maxRecords postcodes.");
+            if (!empty($postcodes)) {
+                DB::table('postcodes')->insert($postcodes);
+            }
+
+            // Commit the transaction
+            DB::commit();
 
             // Close the file handle
             fclose($handle);
 
             $this->info('Postcode data imported successfully.');
+        } else {
+            $this->error('Error reading CSV file.');
         }
+    }
+
+    /**
+     * Validate the postcode data.
+     *
+     * @param string $postcode
+     * @param string $latitude
+     * @param string $longitude
+     * @return bool
+     */
+    public function isValidPostcodeData(string $postcode, string $latitude, string $longitude): bool
+    {
+        // Basic check to see if postcode, latitude, and longitude are not empty
+        if (empty($postcode) || empty($latitude) || empty($longitude)) {
+            return false;
+        }
+
+        return $this->importService->validatePostcodeData($postcode, $latitude, $longitude);
     }
 }
