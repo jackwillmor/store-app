@@ -53,6 +53,7 @@ php artisan app:import-postcode-data --batchSize=1000 --maxRecords=2345
 ```
 - `--batchSize` specifies the number of records to insert in each batch.
 - `--maxRecords` limits the total number of records to import.
+*It is recommended to use `--batchSize=1000` and `--maxRecords=2345` for purposes of this demo*
 
 ### Serve the Application
 Start the Laravel development server:
@@ -75,12 +76,11 @@ The API Postman Collection is available for testing the API endpoints:
 You can import this collection into your Postman app to easily test all available API endpoints.
 
 ## Considerations
-- **Postcode Data:** The download of postcode data was skipped for quicker development. A sample file has been manually placed in the storage directory. In a production scenario, this would require automating the data import.
-- **Authentication:** Consider implementing authentication using Bearer Tokens to enhance security for API requests, ensuring that only authorized users can access certain endpoints.
+- **Authentication:** Consider implementing authentication using Tokens to enhance security for API requests, ensuring that only authorized users can access certain endpoints.
 - **CSV Optimization:** The current implementation of CSV data processing can be improved. For large datasets, it is recommended to use MySQL's LOAD DATA INFILE for faster and more efficient imports, assuming the CSV file is trusted and not user-uploaded.
 - **Full-Text Search:** As users may input partial postcodes, we could use full-text indexing to allow partial matches or fuzzy searching.
 - **Caching:** Implement caching so subsequent requests for the same postcode don’t hit the database.
-- **Security Improvements:** There are quite a few security improvements to be made such as implementing CSP headers
-- **Database Optimisations:** To improve the performance and efficiency of the database, there are a few considerations to make such as adding proper indexes, implement database query caching, optimise MySQL configuration such as using Spatial Indexes, 
+- **Security Improvements:** There are quite a few security improvements to be made such as implementing CSP headers.
+- **Database Optimisations:** To improve the performance and efficiency of the database, there are a few considerations to make such as adding proper indexes, implement database query caching, optimise MySQL configuration such as using Spatial Indexes.
 - **Code Structure:** Implement proper error handling and logging, setup error tracking and performance monitoring.
 - **Pagination:** Due to the size of the shops data, we should implement pagination in the results so that we don't try and load too much in a single request.
