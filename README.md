@@ -39,7 +39,17 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-6. Run the database migrations:
+6. Update .env to include database details:
+```bash
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=store-app
+DB_USERNAME=USER_NAME
+DB_PASSWORD=PASS_WORD
+```
+
+7. Run the database migrations:
 ```bash
 php artisan migrate
 ```
