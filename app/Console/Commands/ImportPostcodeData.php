@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\ImportService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use JetBrains\PhpStorm\NoReturn;
 
@@ -41,12 +42,23 @@ class ImportPostcodeData extends Command
         ini_set('memory_limit', '2G');
         set_time_limit(0); // Allow script to run indefinitely
 
-        // Read the CSV file
-        $postcodeData = storage_path('app/private/postcodedata.csv');
-        $maxRecords = $this->option('maxRecords');
-        $batchSize = $this->option('batchSize');
+        try {
+            $file = $this->downloadAndExtractFile();
+            if (!$file) {
+                $this->error('Failed to download postcode data from CSV file.');
+                return;
+            }
 
-        if (($handle = fopen($postcodeData, 'r')) !== false) {
+            $postcodeData = storage_path('app/private/' . $file);
+            $maxRecords = $this->option('maxRecords');
+            $batchSize = $this->option('batchSize');
+
+            $handle = fopen($postcodeData, 'r');
+            if (!$handle) {
+                $this->error('Error reading CSV file.');
+                return;
+            }
+
             // Skip the header row if present
             fgetcsv($handle);
 
@@ -77,11 +89,10 @@ class ImportPostcodeData extends Command
 
                 // Insert the postcode into the database if the batch size is reached
                 if ($count % $batchSize === 0) {
-                    // Insert the postcode into the database
                     DB::table('postcodes')->insert($postcodes);
                     // Clear the postcodes array for the next batch
                     $postcodes = [];
-                    $this->warn("Postcode data imported $count out of $maxRecords postcodes.");
+                    $this->warn("Imported $count postcodes.");
                 }
 
                 // Exit the loop if the maximum number of records is reached and $maxRecords is greater than 0
@@ -102,9 +113,62 @@ class ImportPostcodeData extends Command
             fclose($handle);
 
             $this->info('Postcode data imported successfully.');
-        } else {
-            $this->error('Error reading CSV file.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->error('An error occurred: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Download and extract the file.
+     *
+     * @return string|null
+     */
+    public function downloadAndExtractFile(): ?string
+    {
+        $url = env('POSTCODE_DATA_URL', 'https://parlvid.mysociety.org/os/ONSPD/2022-11.zip');
+        $tempPath = storage_path('app/temp.zip');
+        $extractPath = storage_path('app/private/');
+        $extractedFile = 'Data/multi_csv/ONSPD_NOV_2022_UK_AB.csv';
+        $destinationPath = 'ONSPD_NOV_2022_UK_AB.csv';
+
+
+        try {
+            $this->warn("Downloading and extracting file...");
+
+            // Download file
+            $response = Http::get($url);
+            file_put_contents($tempPath, $response->body());
+
+            // Extract zip
+            $zip = new \ZipArchive();
+            if ($zip->open($tempPath) === true) {
+                if (!is_dir($extractPath)) {
+                    mkdir($extractPath, 0755, true);
+                }
+                $zip->extractTo($extractPath);
+                $zip->close();
+
+                // Move the extracted file to the desired location
+                if (file_exists($extractPath . $extractedFile)) {
+                    Storage::move($extractedFile, $destinationPath);
+
+                    // Clean up temporary files
+                    Storage::deleteDirectory('Data');
+                    Storage::deleteDirectory('Documents');
+                    Storage::deleteDirectory('User Guide');
+                    unlink($tempPath);
+
+                    return $destinationPath;
+                }
+            } else {
+                throw new \Exception('Failed to extract zip file.');
+            }
+        } catch (\Exception $e) {
+            $this->error('Download and extraction failed: ' . $e->getMessage());
+        }
+
+        return null;
     }
 
     /**
@@ -117,11 +181,7 @@ class ImportPostcodeData extends Command
      */
     public function isValidPostcodeData(string $postcode, string $latitude, string $longitude): bool
     {
-        // Basic check to see if postcode, latitude, and longitude are not empty
-        if (empty($postcode) || empty($latitude) || empty($longitude)) {
-            return false;
-        }
-
-        return $this->importService->validatePostcodeData($postcode, $latitude, $longitude);
+        return !empty($postcode) && !empty($latitude) && !empty($longitude) &&
+            $this->importService->validatePostcodeData($postcode, $latitude, $longitude);
     }
 }
