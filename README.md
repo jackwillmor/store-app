@@ -94,3 +94,4 @@ You can import this collection into your Postman app to easily test all availabl
 - **Database Optimisations:** To improve the performance and efficiency of the database, there are a few considerations to make such as adding proper indexes, implement database query caching, optimise MySQL configuration such as using Spatial Indexes.
 - **Code Structure:** Implement proper error handling and logging, setup error tracking and performance monitoring.
 - **Pagination:** Due to the size of the shops data, we should implement pagination in the results so that we don't try and load too much in a single request.
+- **Testing:** Expand testing by including API testing to make sure endpoints are returning the correct JSON valid responses.
